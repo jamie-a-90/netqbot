@@ -24,10 +24,10 @@ class Application(tk.Frame):
         self.selected_item = 0
         # Populate initial list
         self.populate_list()
-        # Init running bool
-        self.running = False
-        # Init api running bool
-        self.grace_running = False
+        # Init api_assyst_running bool
+        self.api_assyst_running = False
+        # Init api api_assyst_running bool
+        self.stopping_api_assyst_running = False
         
     # Create widgets for gui
     def create_widgets(self):
@@ -67,17 +67,6 @@ class Application(tk.Frame):
         self.shift_menu.grid(row=1, column=3)
         self.shift_tip.bind_widget(self.shift_menu, balloonmsg="The shift will determain when/if the user is assigned tickets")
 
-
-
-        ## QUEUE LIMIT TO GO HERE!
-        ##
-        ##
-        ##
-        ##
-        ##
-        ##
-        ##
-
         # Buttons
         self.add_btn = tk.Button(
             self.master, text="Add User", width=12, activebackground='#345', 
@@ -104,15 +93,47 @@ class Application(tk.Frame):
             activeforeground='white', command=self.stop_run, state=tk.DISABLED)
         self.stop_btn.grid(row=3, column=6)
 
+        # Check Buttons
+        self.check_one_bool = tk.BooleanVar()
+        self.check_two_bool = tk.BooleanVar()
+        self.check_three_bool = tk.BooleanVar()
+        self.check_four_bool = tk.BooleanVar()
+        self.check_five_bool = tk.BooleanVar()
+        self.check_six_bool = tk.BooleanVar()
+        # P1 check button
+        self.check_one = tk.Checkbutton(self.master, text='P1 - 4HR', variable=self.check_one_bool,
+                                        onvalue=True, offvalue=False)
+        self.check_one.grid(row=4, column=5)
+        # P2 check button
+        self.check_two = tk.Checkbutton(self.master, text='P2 - 8HR', variable=self.check_two_bool,
+                                        onvalue=True, offvalue=False)
+        self.check_two.grid(row=5, column=5)
+        # P3 check button
+        self.check_three = tk.Checkbutton(self.master, text='P3 - 16HR', variable=self.check_three_bool,
+                                        onvalue=True, offvalue=False)
+        self.check_three.grid(row=6, column=5)
+        # SR2 check button
+        self.check_four = tk.Checkbutton(self.master, text='SR2 - 4 DAYS', variable=self.check_four_bool,
+                                        onvalue=True, offvalue=False)
+        self.check_four.grid(row=4, column=6)
+        # SR3 check button
+        self.check_five = tk.Checkbutton(self.master, text='SR3 - 10 DAYS', variable=self.check_five_bool,
+                                        onvalue=True, offvalue=False)
+        self.check_five.grid(row=5, column=6)
+        # Work request check button
+        self.check_six = tk.Checkbutton(self.master, text='WORK REQUEST', variable=self.check_six_bool,
+                                        onvalue=True, offvalue=False)
+        self.check_six.grid(row=6, column=6)
+
         # User list (listbox)
         self.user_list = tk.Listbox(self.master, height=8, width=50, border=0)
         self.user_list.grid(row=3, column=0, columnspan=3, rowspan=6, pady=20, padx=20)
         # Create scrollbar 1
-        self.scrollbar_1 = tk.Scrollbar(self.master)
+        #self.scrollbar_1 = tk.Scrollbar(self.master)
         #self.scrollbar_1.grid(row=3, column=3, pady=20, sticky=tk.W) #REMOVED, scroll works without
         # Set scrollbar 1 to user list
-        self.user_list.configure(yscrollcommand=self.scrollbar_1.set)
-        self.scrollbar_1.configure(command=self.user_list.yview)
+        #self.user_list.configure(yscrollcommand=self.scrollbar_1.set)
+        #self.scrollbar_1.configure(command=self.user_list.yview)
         # Bind select
         self.user_list.bind('<<ListboxSelect>>', self.select_item)
 
@@ -120,11 +141,11 @@ class Application(tk.Frame):
         self.log_list = tk.Listbox(self.master, height=16, width=100, border=0)
         self.log_list.grid(row=10, column=0, columnspan=7, rowspan=6, pady=20, padx=20, sticky=tk.W)
         # Create scrollbar 2
-        self.scrollbar_2 = tk.Scrollbar(self.master)
+        #self.scrollbar_2 = tk.Scrollbar(self.master)
         #self.scrollbar_2.grid(row=10, column=7, pady=20, sticky=tk.W) #REMOVED, scroll works without
         # Set scrollbar 2 to log box
-        self.log_list.configure(yscrollcommand=self.scrollbar_2.set)
-        self.scrollbar_2.configure(command=self.log_list.yview)
+        #self.log_list.configure(yscrollcommand=self.scrollbar_2.set)
+        #self.scrollbar_2.configure(command=self.log_list.yview)
 
     # Add new item
     def add_user(self):
@@ -140,8 +161,10 @@ class Application(tk.Frame):
         # Insert into list
         self.user_list.insert(tk.END, (self.user_text.get(), self.userid_text.get(
         ), self.qlimit_text.get(), self.shift_text.get()))
+        self.create_log(message='{x} New user added to database: {y}'.format(x=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), y=self.user_text.get()))
         self.clear_text()
         self.populate_list()
+        
     
     # Remove item
     def remove_user(self):
@@ -152,6 +175,7 @@ class Application(tk.Frame):
         yesno = messagebox.askyesno(message="This will permentanly remove the user. Are you sure? ")
         if yesno: 
             db.remove(self.selected_item[0]) 
+            self.create_log(message='{x} User removed from database: {y}'.format(x=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), y=self.user_text.get()))
             self.clear_text()
             self.populate_list()
         else:
@@ -165,6 +189,7 @@ class Application(tk.Frame):
             return
         db.update(self.selected_item[0], self.user_text.get(
         ), self.userid_text.get(), self.qlimit_text.get(), self.shift_text.get())
+        self.create_log(message='{x} Database updated for user: {y}'.format(x=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), y=self.user_text.get()))
         self.populate_list()
 
     # Clear all text fields
@@ -205,61 +230,82 @@ class Application(tk.Frame):
             # Insert into list
             self.user_list.insert(tk.END, row)
 
-    # Start and Stop running of app
+    # Start and Stop api_assyst_running of app
     def start_run(self):
 
-        if self.grace_running == True:
-            self.log_list.insert(
-                tk.END, '{} There is an ongoing transaction with AssystREST. Please wait for this to stop and try again.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        if self.stopping_api_assyst_running == True:
+            self.create_log(message='{} There is an ongoing transaction with AssystREST. Please wait for this to stop and try again.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
             messagebox.showinfo(message='There is an ongoing transaction with AssystREST. Please wait for this to stop and try again.')
         else:
             try:
+                # Disable/enable buttons while api_assyst_running
                 self.add_btn['state'] = tk.DISABLED
                 self.remove_btn['state'] = tk.DISABLED
                 self.update_btn['state'] = tk.DISABLED
                 self.run_btn['state'] = tk.DISABLED
                 self.stop_btn['state'] = tk.NORMAL
-                self.assyst_thread = threading.Thread(target=app.api_assyst)
+
+                
+                self.assyst_thread = threading.Thread(target=self.api_assyst)
                 self.assyst_thread.start()
-                self.running = True
-                self.log_list.insert(tk.END, '{} Starting.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                self.api_assyst_running = True
+                self.create_log(message='{} Starting.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
             except:
-                self.log_list.insert(tk.END, '{} ERROR: unable to start.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                self.create_log(message='{} ERROR: unable to start.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
     def stop_run(self):
-        self.add_btn['state'] = tk.NORMAL
-        self.remove_btn['state'] = tk.NORMAL
-        self.update_btn['state'] = tk.NORMAL
-        self.run_btn['state'] = tk.NORMAL
-        self.stop_btn['state'] = tk.DISABLED
         try:
-            #self.assyst_mp.stop()
-            self.log_list.insert(tk.END, '{} Stopping.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-            self.running = False
-            self.grace_thread = threading.Thread(target=app.grace)
-            self.grace_thread.start()
+            # Disable/enable buttons while stoping/stopped
+            self.add_btn['state'] = tk.NORMAL
+            self.remove_btn['state'] = tk.NORMAL
+            self.update_btn['state'] = tk.NORMAL
+            self.run_btn['state'] = tk.NORMAL
+            self.stop_btn['state'] = tk.DISABLED
+            self.create_log(message='{} Stopping.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            self.api_assyst_running = False
+            self.stopping_api_assyst_thread = threading.Thread(target=self.stopping_api_assyst)
+            self.stopping_api_assyst_thread.start()
 
         except:
-            self.log_list.insert(tk.END, '{} ERROR: unable to stop.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            self.create_log(message='{} ERROR: unable to stop.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         
     def api_assyst(self):
         self.log_list.insert(tk.END, '{} Successfully started.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        while self.running:
+        while self.api_assyst_running:
             for i in range(1, 11):
                 print(str(i))
                 time.sleep(1)
+            for t in threading.enumerate():
+                if t.name == "MainThread":
+                    if t.is_alive() == False:
+                        self.api_assyst_running = False
             time.sleep(10)
+            print('Successfully stopped thread for api_assyst') 
+        
 
-    def grace(self):
-        self.grace_running = True
-        time.sleep(25)
-        self.grace_running = False        
-        self.log_list.insert(tk.END, '{} Successfully stopped'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+
+    def stopping_api_assyst(self):
+        self.stopping_api_assyst_running = True
+        while self.assyst_thread.is_alive():
+            print('api_assyst thread is still alive. Checking again in 3 seconds')
+            time.sleep(3)
+            continue
+        print('api_assyst thread has been closed. Finalizing stop of stopping_api_assyst thread.')
+        self.stopping_api_assyst_running = False
+        self.create_log(message='{} Successfully stopped'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))    
+        
 
     # Log generator
     def create_log(self, message):
-        None # Logs to be migrated from existing fuctions to here.
+        self.log_list.insert(tk.END, message)
+        self.log_list.yview(tk.END)
+    
 
+
+
+#### MUST CHANGE self.api_assyst_running to FALSE in the event that X button is pressed.
+
+### Change stopping_api_assyst to check if threat.is_alive() and not rely on a time.sleep()
 
 root = tix.Tk()
 app = Application(master=root)
