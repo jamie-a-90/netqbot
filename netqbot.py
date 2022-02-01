@@ -5,6 +5,7 @@ from db import Database
 import time
 import threading
 import datetime
+import assyst
 
 # Instanciate databse object
 db = Database('user.db')
@@ -28,6 +29,10 @@ class Application(tk.Frame):
         self.api_assyst_running = False
         # Init api api_assyst_running bool
         self.stopping_api_assyst_running = False
+        # Database users into list 
+        #self.users = list()
+        # Tickets into a list
+        #self.tickets = list()
         
     # Create widgets for gui
     def create_widgets(self):
@@ -165,7 +170,6 @@ class Application(tk.Frame):
         self.clear_text()
         self.populate_list()
         
-    
     # Remove item
     def remove_user(self):
         if self.user_text.get() == '' or self.userid_text.get() == '' or self.shift_text.get() == '' or self.qlimit_text.get() == '':
@@ -237,64 +241,105 @@ class Application(tk.Frame):
             self.create_log(message='{} There is an ongoing transaction with AssystREST. Please wait for this to stop and try again.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
             messagebox.showinfo(message='There is an ongoing transaction with AssystREST. Please wait for this to stop and try again.')
         else:
-            try:
-                # Disable/enable buttons while api_assyst_running
-                self.add_btn['state'] = tk.DISABLED
-                self.remove_btn['state'] = tk.DISABLED
-                self.update_btn['state'] = tk.DISABLED
-                self.run_btn['state'] = tk.DISABLED
-                self.stop_btn['state'] = tk.NORMAL
+            # Disable/enable buttons while api_assyst_running
+            self.add_btn['state'] = tk.DISABLED
+            self.remove_btn['state'] = tk.DISABLED
+            self.update_btn['state'] = tk.DISABLED
+            self.run_btn['state'] = tk.DISABLED
+            self.stop_btn['state'] = tk.NORMAL
 
-                
-                self.assyst_thread = threading.Thread(target=self.api_assyst)
-                self.assyst_thread.start()
-                self.api_assyst_running = True
-                self.create_log(message='{} Starting.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-            except:
-                self.create_log(message='{} ERROR: unable to start.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            self.users = {}
+            for entry in db.fetch():
+                self.users[entry[1]] = 0
+            self.users['Unassigned'] = 0
+
+            self.tickets = []
+            if self.check_one_bool.get():
+                self.tickets.append('P1 - 4HR')
+            if self.check_two_bool.get():
+                self.tickets.append('P2 - 8HR')
+            if self.check_three_bool.get():
+                self.tickets.append('P3 - 16HR')
+            if self.check_four_bool.get():
+                self.tickets.append('SR2 - 4 DAYS')
+            if self.check_five_bool.get():
+                self.tickets.append('SR3 - 10 DAYS')
+            if self.check_six_bool.get():
+                self.tickets.append('WORK REQUEST')            
+
+            self.assyst_thread = threading.Thread(target=self.assyst_run)
+            self.assyst_thread.start()
+            self.api_assyst_running = True
+            self.create_log(message='{} Starting.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
     def stop_run(self):
-        try:
-            # Disable/enable buttons while stoping/stopped
-            self.add_btn['state'] = tk.NORMAL
-            self.remove_btn['state'] = tk.NORMAL
-            self.update_btn['state'] = tk.NORMAL
-            self.run_btn['state'] = tk.NORMAL
-            self.stop_btn['state'] = tk.DISABLED
-            self.create_log(message='{} Stopping.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-            self.api_assyst_running = False
-            self.stopping_api_assyst_thread = threading.Thread(target=self.stopping_api_assyst)
-            self.stopping_api_assyst_thread.start()
 
-        except:
-            self.create_log(message='{} ERROR: unable to stop.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        # Disable/enable buttons while stoping/stopped
+        self.add_btn['state'] = tk.NORMAL
+        self.remove_btn['state'] = tk.NORMAL
+        self.update_btn['state'] = tk.NORMAL
+        self.run_btn['state'] = tk.NORMAL
+        self.stop_btn['state'] = tk.DISABLED
+        self.create_log(message='{} Stopping.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        self.api_assyst_running = False
+        self.stopping_api_assyst_thread = threading.Thread(target=self.stopping_assyst_run)
+        self.stopping_api_assyst_thread.start()
         
-    def api_assyst(self):
+    def assyst_run(self):
         self.log_list.insert(tk.END, '{} Successfully started.'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         while self.api_assyst_running:
+
+            # Create fake API with tickets and people they're assigned to in JSON or w.e
+
+            # 1) Fetch all the team tickets
+            # 2) Sort how many tickets are assigned to who and their totals. Update ticket count locally in dict..
+            # 3) If there are unassigned tickets that meet catagory of P1 etc add to dictionary then move on to next step.
+            # 4) Sort who is compatible to receive a ticket. If nobody, then leave a log in system.
+            # 5) If someone available to take ticket, then assign one then update dict and list.
+            # 6) iterate over list until nobody can take more or list is empty.
+            # 7) clear list and dictionary and sleep function.            
+
+
+            assyst_connector = assyst.AssystREST(users=self.users, 
+                                            tickets=self.tickets, 
+                                            username='username', 
+                                            password='password', 
+                                            url='https://blahblah.com'
+                                            )
+            ticket_data = assyst_connector.get_tickets()
+
+            print(ticket_data['tickets'])
+
+            for i in ticket_data['tickets']:
+                if ticket_data['tickets'][i]['ASSIGNEDUSER'] in self.users:
+                    self.users[ticket_data['tickets'][i]['ASSIGNEDUSER']] += 1
+                if ticket_data['tickets'][i]['ASSIGNEDUSER'] == '':
+                    self.users['Unassigned'] += 1
+            
+            print(self.users)
+
+
+            
             for i in range(1, 11):
-                print(str(i))
+                print(i)
                 time.sleep(1)
             for t in threading.enumerate():
                 if t.name == "MainThread":
                     if t.is_alive() == False:
                         self.api_assyst_running = False
             time.sleep(10)
-            print('Successfully stopped thread for api_assyst') 
+            print('Successfully stopped thread for assyst_run') 
         
-
-
-    def stopping_api_assyst(self):
+    def stopping_assyst_run(self):
         self.stopping_api_assyst_running = True
         while self.assyst_thread.is_alive():
-            print('api_assyst thread is still alive. Checking again in 3 seconds')
+            print('assyst_run thread is still alive. Checking again in 3 seconds')
             time.sleep(3)
             continue
-        print('api_assyst thread has been closed. Finalizing stop of stopping_api_assyst thread.')
+        print('assyst_run thread has been closed. Finalizing stop of stopping_assyst_run thread.')
         self.stopping_api_assyst_running = False
         self.create_log(message='{} Successfully stopped'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))    
         
-
     # Log generator
     def create_log(self, message):
         self.log_list.insert(tk.END, message)
@@ -305,7 +350,7 @@ class Application(tk.Frame):
 
 #### MUST CHANGE self.api_assyst_running to FALSE in the event that X button is pressed.
 
-### Change stopping_api_assyst to check if threat.is_alive() and not rely on a time.sleep()
+### Change stopping_assyst_run to check if threat.is_alive() and not rely on a time.sleep()
 
 root = tix.Tk()
 app = Application(master=root)
